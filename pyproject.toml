@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "Translation AE"
+version = "0.1.0"
+description = "Vanilla Auto Encoder for Translation using GRU and Attention"
+authors = ["Avinash Ranganath <nash911@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+torch = "^2.0"
+matplotlib = "^3.6.0"
+numpy = "^1.24"
+seaborn = "^0.12.2"
+pandas = "^1.5.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
