@@ -194,7 +194,8 @@ def train_attention(input_tensor, target_tensor, encoder, decoder, encoder_optim
 
 def trainIters(encoder, decoder, input_lang, output_lang, pairs, encoder_optimizer,
                decoder_optimizer, n_iters, device, max_length, teacher_ratio=0.5,
-               n_evals=20, print_every=1000, plot_every=100, plot_show=False, path=None):
+               n_evals=20, print_every=1000, eval_every=1000, plot_every=100,
+               plot_show=False, path=None):
     start = time.time()
 
     # Create a matlibplot canvas for plotting learning curves
@@ -208,7 +209,7 @@ def trainIters(encoder, decoder, input_lang, output_lang, pairs, encoder_optimiz
 
     # Split data into training and validation sets
     num_pairs = len(pairs)
-    train_size = int(num_pairs * 0.8)
+    train_size = int(num_pairs * 0.9)
     pair_inds = np.arange(num_pairs)
     np.random.shuffle(pair_inds)
     train_inds = pair_inds[:train_size]
@@ -219,6 +220,9 @@ def trainIters(encoder, decoder, input_lang, output_lang, pairs, encoder_optimiz
                       for ind in train_inds]
     test_pairs = [tensorsFromPair(input_lang, output_lang, pairs[ind], device)
                   for ind in test_inds]
+    eval_pairs = [pairs[ind] for ind in test_inds]
+
+    print(f"Train Size: {len(train_inds)} -- Test Size: {len(test_inds)}")
 
     criterion = nn.NLLLoss()
 
@@ -275,13 +279,22 @@ def trainIters(encoder, decoder, input_lang, output_lang, pairs, encoder_optimiz
             plot_loss(axs, train_losses, test_losses, plot_freq=plot_every,
                       show=plot_show, save=True, path=path)
 
-    eval_pairs = [pairs[ind] for ind in test_inds]
+        if iter % eval_every == 0:
+            print(f"\nModel evaluation after {iter} iterations:")
+            evaluateRandomly(encoder, decoder, input_lang, output_lang, eval_pairs, max_length,
+                             device, n=10)
+
+    # Final Model Evaluation
+    print("\nFinal Model Evaluation:")
     evaluateRandomly(encoder, decoder, input_lang, output_lang, eval_pairs, max_length,
                      device, n=10)
 
 
 def test(input_tensor, target_tensor, encoder, decoder, criterion, device):
     with torch.no_grad():
+        encoder.eval()
+        decoder.eval()
+
         encoder_hidden = encoder.initHidden()
 
         input_length = input_tensor.size(0)
@@ -305,12 +318,18 @@ def test(input_tensor, target_tensor, encoder, decoder, criterion, device):
             if decoder_input.item() == EOS_token:
                 break
 
+        encoder.train()
+        decoder.train()
+
         return loss.item() / target_length
 
 
 def test_attention(input_tensor, target_tensor, encoder, decoder, criterion, max_length,
                    device):
     with torch.no_grad():
+        encoder.eval()
+        decoder.eval()
+
         encoder_hidden = encoder.initHidden()
 
         input_length = input_tensor.size(0)
@@ -339,11 +358,17 @@ def test_attention(input_tensor, target_tensor, encoder, decoder, criterion, max
             if decoder_input.item() == EOS_token:
                 break
 
+        encoder.train()
+        decoder.train()
+
         return loss.item() / target_length
 
 
 def evaluate(encoder, decoder, input_lang, output_lang, sentence, device):
     with torch.no_grad():
+        encoder.eval()
+        decoder.eval()
+
         input_tensor = tensorFromSentence(input_lang, sentence, device)
         input_length = input_tensor.size()[0]
         encoder_hidden = encoder.initHidden()
@@ -368,12 +393,18 @@ def evaluate(encoder, decoder, input_lang, output_lang, sentence, device):
 
             decoder_input = topi.squeeze().detach()
 
+        encoder.train()
+        decoder.train()
+
         return decoded_words
 
 
 def evaluate_attention(encoder, decoder, input_lang, output_lang, sentence, max_length,
                        device):
     with torch.no_grad():
+        encoder.eval()
+        decoder.eval()
+
         input_tensor = tensorFromSentence(input_lang, sentence, device)
         input_length = input_tensor.size()[0]
         encoder_hidden = encoder.initHidden()
@@ -403,6 +434,9 @@ def evaluate_attention(encoder, decoder, input_lang, output_lang, sentence, max_
                 decoded_words.append(output_lang.index2word[topi.item()])
 
             decoder_input = topi.squeeze().detach()
+
+        encoder.train()
+        decoder.train()
 
         return decoded_words, decoder_attentions[:di + 1]
 

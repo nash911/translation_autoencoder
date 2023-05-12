@@ -40,9 +40,11 @@ def main(args):
 
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
 
-    input_lang, output_lang, pairs = prepareData('eng', 'fra', args.max_length, True)
+    input_lang, output_lang, pairs = prepareData(
+        'eng', 'fra', args.max_length, prefix=False, min_length=args.min_length,
+        reverse=True)
     print(random.choice(pairs))
-    print(f"len(pairs): {len(pairs)}")
+    print(f"Number of pairs: {len(pairs)}")
 
     encoder = EncoderRNN(input_lang.n_words, args.hidden_size, device).to(device)
 
@@ -62,7 +64,7 @@ def main(args):
         encoder, decoder, input_lang, output_lang, pairs, encoder_optimizer,
         decoder_optimizer, n_iters=args.n_iters, device=device, path=training_dir,
         max_length=args.max_length, teacher_ratio=args.teacher_ratio, print_every=100,
-        plot_show=args.plot)
+        eval_every=5000, plot_show=args.plot)
 
 
 if __name__ == "__main__":
@@ -74,6 +76,8 @@ if __name__ == "__main__":
     parser.add_argument('--attention', type=bool, default=False,
                         action=argparse.BooleanOptionalAction,
                         help='attention mechanism for decoder (default: False)')
+    parser.add_argument('--min_length', type=int, default=None,
+                        help='minimum sequence length of input (default: None)')
     parser.add_argument('--max_length', type=int, default=10,
                         help='maximum sequence length (default: 10)')
     parser.add_argument('--dropout', type=float, default=0.1,
